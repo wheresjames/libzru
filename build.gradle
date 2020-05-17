@@ -1,0 +1,26 @@
+
+plugins {
+    id "cpp-library"
+    id "cpp-unit-test"
+}
+
+model {
+    toolChains {
+        gcc(Gcc) {
+            eachPlatform {
+                cppCompiler.withArguments { args ->
+                    args << "-std=c++17" << "-Wall" << "-Werror"
+                }
+            }
+        }
+    }
+}
+
+unitTest {
+    binaries.whenElementKnown(CppTestExecutable) { binary ->
+        if (binary.targetMachine.operatingSystemFamily.linux) {
+            binary.linkTask.get().linkerArgs.add('-pthread')
+        }
+    }
+}
+
