@@ -34,7 +34,9 @@
 
 namespace zru::str
 {
-#   define CHECK_MAX(s, m) m = (0 > m || t_str::npos == m || m > s.length()) ? s.length() : m
+#   define zruCHECK_MAX(s, m) m = (0 > m || t_str::npos == m || m > s.length()) ? s.length() : m
+#   define zruCHR(ch) tcTC(t_char, ch)
+#   define zruTXT(ch) tcTT(t_char, ch)
 
     /** Converts string positions to a length
         @param[in]      start       - Start position
@@ -51,6 +53,59 @@ namespace zru::str
         return end - start;
     }
 
+
+    /** Interprets a string token
+        @param[in]      x_sStr          - String to search
+        @param[in]      x_m             - String to value map
+        @param[in]      x_def           - Default value to return if not found
+        @param[in,out]  pos             - Starting / Ending position in string
+        @param[in]      max             - Maximum position in string to process
+        @param[in]      bCaseSensitive  - true if compare should be case sensitive
+
+        @warning To do a case insensitive compare, put lower case values in the map
+    */
+    template<typename t_anymap>
+        typename t_anymap::mapped_type
+            map_values(const typename t_anymap::key_type &x_sStr, const t_anymap &x_m,
+                       typename t_str::size_type &pos,
+                       typename t_str::size_type max = t_str::npos,
+                       const typename t_anymap::mapped_type &x_def = zru::t_any(),
+                       bool bCaseSensitive = false)
+    {
+        zruCHECK_MAX(x_sStr, max);
+        typename t_anymap::key_type::size_type sz = max - pos;
+
+        // Get max string size
+        typename t_anymap::key_type::size_type longest = 0;
+        for (auto it = x_m.begin(); x_m.end() != it; it++)
+            if (longest < it->first.length())
+                longest = it->first.length();
+
+        // Anything to do?
+        if (0 >= longest)
+            return x_def;
+
+        // Can't be longer than what we have
+        if (longest > sz)
+            longest = sz;
+
+        // String to compare
+        typename t_anymap::key_type cmp = x_sStr.substr(pos, longest);
+        if (!bCaseSensitive)
+            std::transform(cmp.begin(), cmp.end(), cmp.begin(),
+                           [](unsigned char c){ return std::tolower(c); });
+
+        for (auto it = x_m.begin(); x_m.end() != it; it++)
+        {   typename t_anymap::key_type::size_type len = it->first.length();
+            if (sz >= len && cmp.substr(0, len) == it->first)
+            {   pos += len;
+                return it->second;
+            }
+        }
+
+        return x_def;
+    }
+
     /// Finds the first character in the string that is in the list
     /**
         @param[in]      x_sStr          - String to search
@@ -60,9 +115,10 @@ namespace zru::str
     */
     template<typename t_str>
         typename t_str::size_type find_first_of(const t_str &x_sStr, const t_str &x_sFind,
-                                                    typename t_str::size_type &pos, typename t_str::size_type max)
+                                                    typename t_str::size_type &pos,
+                                                    typename t_str::size_type max = -1)
     {
-        CHECK_MAX(x_sStr, max);
+        zruCHECK_MAX(x_sStr, max);
 
         while (pos < max)
         {
@@ -82,9 +138,10 @@ namespace zru::str
     */
     template<typename t_str>
         typename t_str::size_type find_first_not_of(const t_str &x_sStr, const t_str &x_sFind,
-                                                    typename t_str::size_type &pos, typename t_str::size_type max)
+                                                    typename t_str::size_type &pos,
+                                                    typename t_str::size_type max = -1)
     {
-        CHECK_MAX(x_sStr, max);
+        zruCHECK_MAX(x_sStr, max);
 
         while (pos < max)
         {
@@ -95,21 +152,94 @@ namespace zru::str
         return t_str::npos;
     }
 
-    /** Converts escape char
-        @param[in]      x_ch        - Character to unescape
+    /** Unescapes a string
+        @param[in]      x_sStr          - String to unescape
+        @param[in,out]  pos             - Starting / Ending position in string
+        @param[in]      max             - Maximum position in string to process
 
-        @returns Unescaped character
+        @returns Unescaped string
     */
-    template<typename t_char>
-        t_char UnescapeChar(const t_char x_ch)
+    template<typename t_str>
+        t_str UnescapeStr(const t_str &x_sStr,
+                          typename t_str::size_type &pos,
+                          typename t_str::size_type max = -1)
     {
-        switch(x_ch)
+        typedef typename t_str::value_type t_char;
+        zruCHECK_MAX(x_sStr, max);
+
+        t_str r;
+        while (pos < max)
         {
-            case tcTC(t_char, 'r') : return '\r';
-            case tcTC(t_char, 'n') : return '\n';
-            case tcTC(t_char, 't') : return '\t';
+            typename t_str::value_type ch = x_sStr[pos];
+
+            if (zruCHR('\\') != ch)
+            {   pos++;
+                r += ch;
+            }
+            else
+            {
+                pos++;
+                if (pos < max)
+                {
+                    ch = x_sStr[pos++];
+                    switch(ch)
+                    {
+                        default: r += ch; break;
+                        case zruCHR('b') : r += '\b'; break;
+                        case zruCHR('r') : r += '\r'; break;
+                        case zruCHR('n') : r += '\n'; break;
+                        case zruCHR('t') : r += '\t'; break;
+                        case zruCHR('u') :
+                        {
+                            typename t_str::size_type n = max - pos;
+                            if (0 < n)
+                            {
+                                if (4 < n)
+                                    n = 4;
+                                r += (t_char)any(x_sStr.substr(pos, n)).toUInt(16);
+                                pos += n;
+                            }
+                        }
+                    }
+                }
+            }
         }
-        return x_ch;
+        return r;
+    }
+
+    /** Escapes a string
+        @param[in]      x_sStr          - String to escape
+        @param[in,out]  pos             - Starting / Ending position in string
+        @param[in]      max             - Maximum position in string to process
+
+        @returns Unescaped string
+    */
+    template<typename t_str>
+        t_str EscapeStr(const t_str &x_sStr,
+                          typename t_str::size_type &pos,
+                          typename t_str::size_type max = -1)
+    {
+        typedef typename t_str::value_type t_char;
+        zruCHECK_MAX(x_sStr, max);
+
+        t_str r;
+        while (pos < max)
+        {
+            typename t_str::value_type ch = x_sStr[pos++];
+
+            switch(ch)
+            {
+                default: r += ch; break;
+                case zruCHR('\b') : r += "\\\b"; break;
+                case zruCHR('\r') : r += "\\\r"; break;
+                case zruCHR('\n') : r += "\\\n"; break;
+                case zruCHR('\t') : r += "\\\t"; break;
+                case zruCHR('\"') : r += "\\\""; break;
+                case zruCHR('\'') : r += "\\\'"; break;
+                case zruCHR('\\') : r += "\\\\"; break;
+            }
+        }
+        return r;
     }
 
     /// Unquotes the given string
@@ -120,15 +250,16 @@ namespace zru::str
         @param[in]		x_sOpen		    - List of open quotes
         @param[in]		x_sClose 	    - List of close quotes
         @param[in]		x_sEsc		    - List of escape characters
-        @param[in]      x_bPlusUnquoted - Also collects characters outside of quotes
+        @param[in]      bPlusUnquoted   - Also collects characters outside of quotes
+        @param[in]      bBreakAfter     - If true, breaks after the first quoted string
     */
     template<typename t_str>
         t_str unquote(const t_str &x_sStr,
                       typename t_str::size_type &pos, typename t_str::size_type max,
                       const t_str &x_sOpen, const t_str &x_sClose, const t_str &x_sEsc,
-                      const t_str &x_sBreak, bool x_bPlusUnquoted = true)
+                      const t_str &x_sBreak, bool bPlusUnquoted = true, bool bBreakAfter = false)
     {
-        CHECK_MAX(x_sStr, max);
+        zruCHECK_MAX(x_sStr, max);
 
         t_str r;
         bool inQuote = false;
@@ -142,8 +273,11 @@ namespace zru::str
                 pos++;
                 if (pos < max)
                 {
-                    if (inQuote || x_bPlusUnquoted)
-                        r += UnescapeChar(x_sStr[pos]);
+                    if (inQuote || bPlusUnquoted)
+                    {
+                        r += ch;
+                        r += x_sStr[pos];
+                    }
                     pos++;
                 }
             }
@@ -155,25 +289,34 @@ namespace zru::str
                 if (0 < x_sBreak.length() && t_str::npos != x_sBreak.find(ch))
                     break;
 
+                // Start quotes?
                 if (t_str::npos != x_sOpen.find(ch))
                     inQuote = true;
-                else if (x_bPlusUnquoted)
+
+                else if (bPlusUnquoted)
                     r += ch;
+
                 pos++;
             }
 
             // In quotes
             else
             {
+                pos++;
+
+                // End quote?
                 if (t_str::npos != x_sClose.find(ch))
+                {
+                    if (bBreakAfter)
+                        break;
                     inQuote = false;
+                }
                 else
                     r += ch;
-                pos++;
             }
         }
 
-        return r;
+        return UnescapeStr(r, strpos(0));
     }
 
     /// Parses a string in to a quoted key/value pair
@@ -184,6 +327,8 @@ namespace zru::str
         @param[in]      sQuotes         - Quote characters
         @param[in]      sSep            - Characters that separate key/value
         @param[in]      sBreak          - Characters to break processing on
+        @param[in]      bPlusUnquoted   - Also collects characters outside of quotes
+        @param[in]      bBreakAfter     - If true, breaks after the first quoted string
 
         @returns key/value pair
     */
@@ -193,12 +338,15 @@ namespace zru::str
                 typename t_str::size_type &pos,
                 typename t_str::size_type max,
                 const t_str &sQuotes, const t_str &sSep,
-                const t_str &sBreak
+                const t_str &sBreak,
+                bool bPlusUnquoted = true,
+                bool bBreakAfter = false
                 )
     {
         // Char
         t_str key = unquote(x_sStr, pos, max, sQuotes, sQuotes,
-                            t_str(tcTT(t_char, "\\")), sSep + sBreak);
+                            t_str(tcTT(t_char, "\\")), sSep + sBreak,
+                            bPlusUnquoted, bBreakAfter);
 
         // Key only?
         if (t_str::npos == pos || pos >= max || t_str::npos == sSep.find(x_sStr[pos]))
@@ -207,7 +355,9 @@ namespace zru::str
         // Get the value
         pos++;
         t_str val = unquote(x_sStr, pos, max, sQuotes, sQuotes,
-                            t_str(tcTT(t_char, "\\")), sBreak);
+                            t_str(tcTT(t_char, "\\")), sBreak,
+                            bPlusUnquoted, bBreakAfter);
+
         return std::pair<t_str, t_str>(key, val);
     }
 
@@ -234,7 +384,7 @@ namespace zru::str
                                   const t_str &x_sSep, const t_str &x_sOpen, const t_str &x_sClose,
                                   const t_str &x_sEsc, bool x_bPlusUnquoted = true)
     {
-        CHECK_MAX(x_sStr, max);
+        zruCHECK_MAX(x_sStr, max);
 
         t_lst lst;
         while (t_str::npos != pos && pos < max)

@@ -39,27 +39,29 @@ namespace zru
 property_bag_ts     pb;
 
 
-property_bag::property_bag() : m_i(0)
+property_bag::property_bag() : m_i(0), m_bArray(false)
 {
 }
 
-property_bag::property_bag(const t_any &r) : m_i(0)
+property_bag::property_bag(const t_any &r) : m_i(0), m_bArray(false)
 {
     m_v = r;
 }
 
-property_bag::property_bag(const property_bag &r) : m_i(0)
+property_bag::property_bag(const property_bag &r) : m_i(0), m_bArray(false)
 {
     *this = r;
 }
 
 property_bag::property_bag(std::initializer_list<std::pair<t_str, t_any> > a)
+     : m_i(0), m_bArray(false)
 {
     for(auto it = std::begin(a); std::end(a) != it; it++)
         m_m[it->first] = it->second;
 }
 
 // property_bag::property_bag(std::initializer_list<std::pair<t_str, property_bag> > a)
+//       : m_i(0), m_bArray(false)
 // {
 //     for(auto it = std::begin(a); std::end(a) != it; it++)
 //         m_m[it->first] = it->second;
@@ -70,6 +72,7 @@ property_bag& property_bag::operator = (const property_bag &r)
     m_i = r.m_i;
     m_v = r.m_v;
     m_m = r.m_m;
+    m_bArray = r.m_bArray;
     return *this;
 }
 
@@ -222,6 +225,16 @@ bool property_bag::isset(const t_str &sSep, std::initializer_list< t_str > a)
 property_bag& property_bag::operator[](const t_any &k)
 {
     return m_m[k.toString()];
+}
+
+property_bag::const_iterator property_bag::find(const t_any &k) const
+{
+    return m_m.find(k.toString());
+}
+
+property_bag::iterator property_bag::find(const t_any &k)
+{
+    return m_m.find(k.toString());
 }
 
 property_bag& property_bag::at(const t_str &sep, const t_str &k)

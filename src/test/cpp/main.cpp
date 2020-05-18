@@ -35,10 +35,32 @@ int Test_Any()
 
     TEST(zru::any('A').toString() == "A");
 
+    TEST(zru::any(true).toString() == "true");
+    TEST(zru::any("1") == true);
+    TEST(zru::any("yes") == true);
+    TEST(zru::any("on") == true);
+    TEST(zru::any("true") == true);
+
     zru::vector v = zru::any(3.14).toVector();
     TEST(zru::string(v.begin(), v.end()) == "3.14");
 
     TEST(zru::any(&v).toString().substr(0, 3) == "[0x");
+
+    return 0;
+}
+
+//-------------------------------------------------------------------
+int Test_Str()
+{
+    STARTTEST("Test_Str");
+
+    zru::t_anymap mVals({{"first", 12}, {"second", 13}});
+
+    TEST(zru::str::map_values("first", mVals, zru::strpos(0)) == 12);
+    TEST(zru::str::map_values("SeConD", mVals, zru::strpos(0)) == 13);
+    //TEST(!zru::str::map_values("third", mVals, zru::strpos(0)).isSet());
+
+    TEST(zru::str::UnescapeStr<zru::t_str>("\\r\\n", zru::strpos(0)) == "\r\n");
 
     return 0;
 }
@@ -87,16 +109,15 @@ int Test_PropertyBag()
 }
 
 //-------------------------------------------------------------------
-int Test_CommandLineParser()
+int Test_Parsers()
 {
-    STARTTEST("Test_CommandLineParser");
+    STARTTEST("Test_Parsers");
 
     const typename zru::string cmdline
         = "myapp.exe ok -v -xyz 1234 -i \"C:\\\\Program Files\" --out 'C:/temp' --p1:hi --p2:\"hi 1\" --p3:hi\\ 2 --p4 hi\\ 3 --p5:##1";
 
     auto pb = zru::parsers::parse_command_line(cmdline);
 
-    //zru::parsers::dump(pb);
     TEST(pb["v"].val() == "1234");
     TEST(pb["x"].val() == "1234");
     TEST(pb["y"].val() == "1234");
@@ -108,6 +129,39 @@ int Test_CommandLineParser()
     TEST(pb["p5"].val() == "ok");
     TEST(pb["out"].val() == "C:/temp");
     TEST(pb["i"].val() == "C:\\Program Files");
+
+    const typename zru::string jValid[] =
+        {
+            "{\"a\":\"b\", \"c\":{\"d\":3.14}, \"e\":[11,22,33,44,\"ok\"]}",
+            "{\"a\":\"b\", \"c\":{\"d\":3.14,\"e\":{\"int\":1234,\"true\":true,\"false\":false}}}"
+        };
+
+    pb = zru::parsers::json_parse(jValid[0]);
+//    std::cout << zru::parsers::dumpPb(pb) << std::endl;
+    std::cout << zru::parsers::json_encode(pb, false) << std::endl;
+    TEST(pb["a"].val() == "b");
+    TEST(pb["c"]["d"].val() == 3.14);
+
+    pb = zru::parsers::json_parse(jValid[1]);
+    std::cout << zru::parsers::json_encode(pb, false) << std::endl;
+    TEST(pb["a"].val() == "b");
+    TEST(pb["c"]["d"].val() == 3.14);
+    TEST(pb["c"]["e"]["int"].val() == 1234);
+    TEST(pb["c"]["e"]["true"].val() == true);
+    TEST(pb["c"]["e"]["false"].val() == false);
+
+    const typename zru::string jBestEffort[] =
+        {
+            "{\"a\"=\"b\", \"c\":{\"d\":3.14}}",
+            "a=b,c=d",
+            "a=b\nc=d\ne={f:g,h=i}",
+            "a\nb=c",
+            "a=b;c=d\ne=f\n#g=h\ni=/*no*/j\nk=l//hello",
+            "a = Hello World \n This Has = Spaces // Ha"
+        };
+
+    pb = zru::parsers::json_parse(jBestEffort[0]);
+    std::cout << zru::parsers::json_encode(pb, false) << std::endl;
 
     return 0;
 }
@@ -176,16 +230,19 @@ int Test_Threads()
                 {
                     if (zru::pb.named_wait("thread-rx", 3000))
                         value++;
+                    if (zru::pb.get(".", "key3").val() == -1)
+                        return -1;
                     return 0;
                 }));
 
     zru::pb.set(".", "key1", 1);
     zru::pb.set(".", "key2", 2);
     zru::pb.set(".", "key3", 3);
+    zru::pb.set(".", "key2", -1);
     waitThread1->join();
 
     TEST(0 < value);
-    TEST(2 == zru::pb.get_named_update_count("thread-rx"));
+    TEST(3 == zru::pb.get_named_update_count("thread-rx"));
 
     zru::pb.remove_named_wait("thread-rx");
 
@@ -222,11 +279,15 @@ int main(int argc, char *argv[])
     if (result)
         return result;
 
+    result = Test_Str();
+    if (result)
+        return result;
+
     result = Test_PropertyBag();
     if (result)
         return result;
 
-    result = Test_CommandLineParser();
+    result = Test_Parsers();
     if (result)
         return result;
 

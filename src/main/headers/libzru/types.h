@@ -59,6 +59,17 @@ namespace zru
     typedef std::wstring wstring;
     typedef std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> strcnv;
 
+    typedef std::string t_str;
+    typedef std::wstring t_wstr;
+    typedef std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> t_wstrcnv;
+
+    template<typename T>
+        static T& r2l(T &&r)
+        {   return r;
+        }
+
+    inline t_str::size_type& strpos(t_str::size_type &&r) { return r; }
+
 #   define CONSOLE_BLACK        "\033[90m"
 #   define CONSOLE_RED          "\033[91m"
 #   define CONSOLE_GREEN        "\033[92m"
@@ -79,14 +90,14 @@ namespace zru
 #   define ZruLog(...) std::cout << zru::str::filename<zru::string>(__FILE__) \
                                  << ":" << __FUNCTION__ \
                                  << "(" << __LINE__ << "): " \
-                                 << zru::str::join<zru::string>(" ", __VA_ARGS__) \
+                                 << zru::str::join<zru::string>("", __VA_ARGS__) \
                                  << std::endl;
 
 #   define ZruLevel(level, ...) std::cout << zru::str::filename<zru::string>(__FILE__) \
                                           << ":" << __FUNCTION__ \
                                           << "(" << __LINE__ << "): " \
                                           << zru::str::console_log_level_str<zru::string>(level) << " " \
-                                          << zru::str::join<zru::string>(" ", __VA_ARGS__) \
+                                          << zru::str::join<zru::string>("", __VA_ARGS__) \
                                           << std::endl;
 
 #   define ZruError(...)    ZruLevel(1, __VA_ARGS__)

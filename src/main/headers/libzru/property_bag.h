@@ -67,7 +67,7 @@ public:
 
     iterator erase( iterator it ) { return m_m.erase( it ); }
 
-    void clear() { m_m.clear(); m_v = t_any(); m_i = 0; }
+    void clear() { m_m.clear(); m_v = t_any(); m_i = 0; m_bArray = false; }
 
 public:
 
@@ -93,6 +93,9 @@ public:
 
     property_bag& operator[](const t_any &k);
 
+    iterator find(const t_any &k);
+    const_iterator find(const t_any &k) const;
+
 public:
 
     int size() const;
@@ -114,6 +117,12 @@ public:
     bool isset(std::initializer_list< t_str > a);
 
     bool isset(const t_str &sSep, std::initializer_list< t_str > a);
+
+    bool isArray() const { return m_bArray; }
+
+    void setArray(bool b) { m_bArray = b; }
+
+    void setIdx(t_size i) { m_i = i; }
 
     t_any& val();
 
@@ -173,6 +182,9 @@ private:
 
     // The property map
     t_map        m_m;
+
+    // Non-zero if this is an array
+    bool         m_bArray;
 
 };
 

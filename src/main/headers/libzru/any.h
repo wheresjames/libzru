@@ -40,7 +40,7 @@ namespace zru
 #   define ZRZ_SIMPLE_TYPE(t, i, m) \
         int sizeOf(const t) const { return at_##i & at_size_mask; } \
         Type typeOf(const t) const { return at_##i; } \
-        bool is##m() { return type == at_##i; } \
+        bool is##m() const { return type == at_##i; } \
         any(const t v) { type = typeOf(v); v##m = v; } \
         any& set_##i(const t &v) { clear(); type = typeOf(v); v##m = v; return *this; } \
         any& operator =(const t &v) { return set_##i(v); }
@@ -54,6 +54,7 @@ namespace zru
         any& operator =(const t v) { return set_##i(v); }
 
 #   define ZRZ_SIMPLE_CAST(t) \
+        case at_bool: return (t)vBool; \
         case at_char: return (t)vChar; \
         case at_uchar: return (t)vUChar; \
         case at_wchar: return (t)vWChar; \
@@ -71,6 +72,7 @@ namespace zru
         case at_voidptr: return (t)(std::uintptr_t)vVoidPtr;
 
 #   define ZRZ_SIMPLE_CONV(t) \
+        case at_bool: return t(vBool); \
         case at_char: return t(vChar); \
         case at_uchar: return t(vUChar); \
         case at_wchar: return t(vWChar); \
@@ -113,7 +115,8 @@ namespace zru
             at_float_t      = 0x0A00,
             at_double_t     = 0x0B00,
             at_longdouble_t = 0x0C00,
-            at_void_t       = 0x0D00,
+            at_bool_t       = 0x0D00,
+            at_void_t       = 0x0E00,
 
             // POD
             at_void         = 0,
@@ -128,9 +131,10 @@ namespace zru
             at_uwchar       = at_uchar_t        | sizeof(unsigned wchar_t),
 
             // Size
-            at_size         = at_size_t        | sizeof(size_t),
+            at_size         = at_size_t         | sizeof(size_t),
 
-            // Int
+            // Types
+            at_bool         = at_bool_t         | sizeof(bool),
             at_int          = at_int_t          | sizeof(int),
             at_uint         = at_uint_t         | sizeof(unsigned int),
             at_long         = at_long_t         | sizeof(long),
@@ -145,7 +149,6 @@ namespace zru
             at_array        = 0x10000,
             at_arrstring    = at_array | at_char,
             at_arrwstring   = at_array | at_wchar,
-            at_arrvector    = at_array | 3,
 
             // Objects
             at_object       = 0x20000,
@@ -170,8 +173,21 @@ namespace zru
         // Returns the type of data in this container
         Type getType() const { return type; }
 
+        /// Returns non-zero if a value is set
         bool isVoid() const { return at_void == type; }
 
+        /// Returns non-zero if a value is set
+        bool isSet() const { return at_void != type; }
+
+        bool isType(std::initializer_list<int> types) const
+        {
+            for(auto it = std::begin(types); std::end(types) != it; it++)
+                if (getType() == *it)
+                    return true;
+            return false;
+        }
+
+        /// Creates the specified type
         void make(Type t)
         {
             clear();
@@ -179,6 +195,7 @@ namespace zru
             switch(t)
             {
                 default : break;
+                case at_bool : type = t; vBool = false; break;
                 case at_char : type = t; vChar = 0; break;
                 case at_uchar : type = t; vUChar = 0; break;
                 case at_wchar : type = t; vWChar = 0; break;
@@ -223,6 +240,7 @@ namespace zru
             switch(r.getType())
             {
                 default : break;
+                case at_bool : v.set_bool(r.vBool); break;
                 case at_char : v.set_char(r.vChar); break;
                 case at_uchar : v.set_uchar(r.vUChar); break;
                 case at_wchar : v.set_wchar(r.vWChar); break;
@@ -255,6 +273,7 @@ namespace zru
             switch(v.getType())
             {
                 default : break;
+                case at_bool : v = v.toBool() ^ r.toBool(); break;
                 case at_char : v = v.toChar() + r.toChar(); break;
                 case at_uchar : v = v.toUChar() + r.toUChar(); break;
                 case at_wchar : v = v.toWChar() + r.toWChar(); break;
@@ -296,6 +315,7 @@ namespace zru
             switch(v.getType())
             {
                 default : break;
+                case at_bool : v = v.toBool() ^ r.toBool(); break;
                 case at_char : v = v.toChar() - r.toChar(); break;
                 case at_uchar : v = v.toUChar() - r.toUChar(); break;
                 case at_wchar : v = v.toWChar() - r.toWChar(); break;
@@ -332,9 +352,10 @@ namespace zru
 
         bool eq(any& v, const any& r)
         {
-            switch(v.getType())
+            switch(r.getType())
             {
                 default : break;
+                case at_bool : return v.toBool() == r.toBool();
                 case at_char : return v.toChar() == r.toChar();
                 case at_uchar : return v.toUChar() == r.toUChar();
                 case at_wchar : return v.toWChar() == r.toWChar();
@@ -359,6 +380,56 @@ namespace zru
         bool operator == (const any &r)
         {
             return eq(*this, r);
+        }
+
+        // [ bool ]
+        ZRZ_SIMPLE_TYPE(bool, bool, Bool)
+        bool toBool() const
+        {
+            switch(type)
+            {
+                default : break;
+                ZRZ_SIMPLE_CAST(bool);
+                case at_string:
+                {   const char *pStr = pString->c_str();
+                    switch(pString->length())
+                    {   case 1: if ('1' == pStr[0]) return true;
+                        case 2: if ('o' == std::tolower(pStr[0])
+                                    && 'n' == std::tolower(pStr[1])
+                                    ) return true;
+                        case 3: if ('y' == std::tolower(pStr[0])
+                                    && 'e' == std::tolower(pStr[1])
+                                    && 's' == std::tolower(pStr[2])
+                                    ) return true;
+                        case 4: if ('t' == std::tolower(pStr[0])
+                                    && 'r' == std::tolower(pStr[1])
+                                    && 'u' == std::tolower(pStr[2])
+                                    && 'e' == std::tolower(pStr[3])
+                                    ) return true;
+                    }
+                    return false;
+                }
+                case at_wstring:
+                {   const wchar_t *pWStr = pWString->c_str();
+                    switch(pString->length())
+                    {   case 1: if (L'1' == pWStr[0]) return true;
+                        case 2: if (L'o' == std::tolower(pWStr[0])
+                                    && L'n' == std::tolower(pWStr[1])
+                                    ) return true;
+                        case 3: if (L'y' == std::tolower(pWStr[0])
+                                    && L'e' == std::tolower(pWStr[1])
+                                    && L's' == std::tolower(pWStr[2])
+                                    ) return true;
+                        case 4: if (L't' == std::tolower(pWStr[0])
+                                    && L'r' == std::tolower(pWStr[1])
+                                    && L'u' == std::tolower(pWStr[2])
+                                    && L'e' == std::tolower(pWStr[3])
+                                    ) return true;
+                    }
+                    return false;
+                }
+            }
+            return 0;
         }
 
         // [ char ]
@@ -433,7 +504,7 @@ namespace zru
 
         // [ int ]
         ZRZ_SIMPLE_TYPE(int, int, Int)
-        int toInt() const
+        int toInt(int base = 10) const
         {
             try
             {
@@ -441,8 +512,8 @@ namespace zru
                 {
                     default : break;
                     ZRZ_SIMPLE_CAST(int);
-                    case at_string: return std::stoi(*pString);
-                    case at_wstring: return std::stoi(*pWString);
+                    case at_string: return std::stoi(*pString, 0, base);
+                    case at_wstring: return std::stoi(*pWString, 0, base);
                 }
             } catch(std::invalid_argument &e) {}
             return 0;
@@ -450,7 +521,7 @@ namespace zru
 
         // [ unsigned ]
         ZRZ_SIMPLE_TYPE(unsigned, uint, UInt)
-        unsigned toUInt() const
+        unsigned toUInt(int base = 10) const
         {
             try
             {
@@ -458,8 +529,8 @@ namespace zru
                 {
                     default : break;
                     ZRZ_SIMPLE_CAST(unsigned);
-                    case at_string: return std::stoul(*pString);
-                    case at_wstring: return std::stoul(*pWString);
+                    case at_string: return std::stoul(*pString, 0, base);
+                    case at_wstring: return std::stoul(*pWString, 0, base);
                 }
             } catch(std::invalid_argument &e) {}
             return 0;
@@ -467,7 +538,7 @@ namespace zru
 
         // [ long ]
         ZRZ_SIMPLE_TYPE(long, long, Long)
-        long toLong() const
+        long toLong(int base = 10) const
         {
             try
             {
@@ -475,8 +546,8 @@ namespace zru
                 {
                     default : break;
                     ZRZ_SIMPLE_CAST(long);
-                    case at_string: return std::stol(*pString);
-                    case at_wstring: return std::stol(*pWString);
+                    case at_string: return std::stol(*pString, 0, base);
+                    case at_wstring: return std::stol(*pWString, 0, base);
                 }
             } catch(std::invalid_argument &e) {}
             return 0;
@@ -484,7 +555,7 @@ namespace zru
 
         // [ unsigned long ]
         ZRZ_SIMPLE_TYPE(unsigned long, ulong, ULong)
-        unsigned long toULong() const
+        unsigned long toULong(int base = 10) const
         {
             try
             {
@@ -492,8 +563,8 @@ namespace zru
                 {
                     default : break;
                     ZRZ_SIMPLE_CAST(unsigned long);
-                    case at_string: return std::stoul(*pString);
-                    case at_wstring: return std::stoul(*pWString);
+                    case at_string: return std::stoul(*pString, 0, base);
+                    case at_wstring: return std::stoul(*pWString, 0, base);
                 }
             } catch(std::invalid_argument &e) {}
             return 0;
@@ -501,7 +572,7 @@ namespace zru
 
         // [ long long ]
         ZRZ_SIMPLE_TYPE(long long, longlong, LongLong)
-        long long toLongLong() const
+        long long toLongLong(int base = 10) const
         {
             try
             {
@@ -509,8 +580,8 @@ namespace zru
                 {
                     default : break;
                     ZRZ_SIMPLE_CAST(long long);
-                    case at_string: return std::stoll(*pString);
-                    case at_wstring: return std::stoll(*pWString);
+                    case at_string: return std::stoll(*pString, 0, base);
+                    case at_wstring: return std::stoll(*pWString, 0, base);
                 }
             } catch(std::invalid_argument &e) {}
             return 0;
@@ -518,7 +589,7 @@ namespace zru
 
         // [ unsigned long long ]
         ZRZ_SIMPLE_TYPE(unsigned long long, ulonglong, ULongLong)
-        unsigned long long toULongLong() const
+        unsigned long long toULongLong(int base = 10) const
         {
             try
             {
@@ -526,8 +597,8 @@ namespace zru
                 {
                     default : break;
                     ZRZ_SIMPLE_CAST(unsigned long long);
-                    case at_string: return std::stoull(*pString);
-                    case at_wstring: return std::stoull(*pWString);
+                    case at_string: return std::stoull(*pString, 0, base);
+                    case at_wstring: return std::stoull(*pWString, 0, base);
                 }
             } catch(std::invalid_argument &e) {}
             return 0;
@@ -619,6 +690,7 @@ namespace zru
                 {
                     default : break;
     //                ZRZ_SIMPLE_CONV(std::to_string); // <<< Ditching this so I can clip the trailing zeros on floating points
+                    case at_bool:           return vBool ? "true" : "false";
                     case at_char:           return t_str() += vChar;
                     case at_uchar:          return t_str() += vUChar;
                     case at_wchar:          return t_str() += (t_str::value_type)vWChar;
@@ -641,6 +713,42 @@ namespace zru
             } catch(...){}
             return string();
         }
+        string toNumString(int base = 10, bool bUpperCase = false) const
+        {
+            try
+            {
+                unsigned long long ll = 0;
+                switch(type)
+                {
+                    default : break;
+    //                ZRZ_SIMPLE_CONV(std::to_string); // <<< Ditching this so I can clip the trailing zeros on floating points
+                    case at_bool:           ll = (unsigned long long)vBool ? 1 : 0; break;
+                    case at_char:           ll = (unsigned long long)vChar; break;
+                    case at_uchar:          ll = (unsigned long long)vUChar; break;
+                    case at_wchar:          ll = (unsigned long long)vWChar; break;
+                    case at_uwchar:         ll = (unsigned long long)vUWChar; break;
+                    case at_size:           ll = (unsigned long long)vSize; break;
+                    case at_int:            ll = (unsigned long long)vInt; break;
+                    case at_uint:           ll = (unsigned long long)vUInt; break;
+                    case at_long:           ll = (unsigned long long)vLong; break;
+                    case at_ulong:          ll = (unsigned long long)vULong; break;
+                    case at_longlong:       ll = (unsigned long long)vLongLong; break;
+                    case at_ulonglong:      ll = (unsigned long long)vULongLong; break;
+                    case at_float:          ll = (unsigned long long)vFloat; break;
+                    case at_double:         ll = (unsigned long long)vDouble; break;
+                    case at_longdouble:     ll = (unsigned long long)vLongDouble; break;
+                    case at_voidptr:        ll = (unsigned long long)(std::uintptr_t)vVoidPtr; break;
+                }
+                std::stringstream ss;
+                if (16 == base)
+                    ss << std::hex;
+                if (bUpperCase)
+                    ss << std::uppercase;
+                ss << ll;
+                return ss.str();
+            } catch(...){}
+            return string();
+        }
 
         // [ wstring ]
         Type typeOf(const wstring &) { return at_wstring; }
@@ -652,12 +760,13 @@ namespace zru
         any& set_wstring(const wstring &v) { make(typeOf(v)); (*pWString) = v; return *this; }
         any& operator =(const wchar_t *v) { make(typeOf(v)); (*pWString) = v; return *this; }
         any& set_wchar_ptr(const wchar_t *v) { make(typeOf(v)); (*pWString) = v; return *this; }
-        wstring toWString() const
+        wstring toWString(int base = 10) const
         {
             switch(type)
             {
                 default : break;
 //                ZRZ_SIMPLE_CONV(std::to_wstring); // <<< Ditching this so I can clip the trailing zeros on floating points
+                case at_bool:           return vBool ? L"true" : L"false";
                 case at_char:           return t_wstr() += (t_wstr::value_type)vChar;
                 case at_uchar:          return t_wstr() += (t_wstr::value_type)vUChar;
                 case at_wchar:          return t_wstr() += vWChar;
@@ -705,6 +814,7 @@ namespace zru
 
         union
         {
+            bool                vBool;
             char                vChar;
             unsigned char       vUChar;
             wchar_t             vWChar;
@@ -735,6 +845,10 @@ namespace zru
 
         Type        type;
     };
+
+    typedef any t_any;
+    typedef std::map<zru::string, zru::t_any> t_anymap;
+    typedef std::map<zru::wstring, zru::t_any> t_wanymap;
 
 }
 
