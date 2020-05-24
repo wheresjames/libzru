@@ -1,7 +1,7 @@
 /*------------------------------------------------------------------
 // Copyright (c) 2020
 // Robert Umbehant
-// winglib@wheresjames.com
+// libzru@wheresjames.com
 // http://www.wheresjames.com
 //
 // Redistribution and use in source and binary forms, with or
@@ -181,7 +181,6 @@ private:
 
     /// Signals the thread
     std::condition_variable     m_cvLock;
-
 };
 
 } // end namespace

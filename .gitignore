@@ -1,9 +1,35 @@
+
 ## Custom
 nohup.out
 _*
 *-lock.*
-node_modules
 creds
+
+## CMake
+/bin/
+/lib/
+/out/
+/build/
+/CMakeFiles/
+/Testing/
+CMakeCache.txt
+*.cache
+*.cmake
+
+## Conan
+conan.lock
+conanbuildinfo.cmake
+conanbuildinfo.txt
+conaninfo.txt
+graph_info.json
+Makefile
+
+## Node.js
+node_modules
+
+## Python
+*.pyc
+__pycache__
 
 ## Java
 *.class
@@ -131,3 +157,4 @@ Thumbs.db
 !/ios-moe/xcode/*.xcodeproj/xcshareddata
 !/ios-moe/xcode/*.xcodeproj/project.pbxproj
 /ios-moe/xcode/native/
+

@@ -4,12 +4,19 @@ plugins {
     id "cpp-unit-test"
 }
 
+repositories {
+    mavenLocal()
+    flatDir {
+        dirs '../lib3'
+    }
+}
+
 model {
     toolChains {
         gcc(Gcc) {
             eachPlatform {
                 cppCompiler.withArguments { args ->
-                    args << "-std=c++17" << "-Wall" << "-Werror"
+                    args << "-std=c++17" << "-Wall" << "-Werror" << "-Wextra"
                 }
             }
         }
@@ -20,6 +27,7 @@ unitTest {
     binaries.whenElementKnown(CppTestExecutable) { binary ->
         if (binary.targetMachine.operatingSystemFamily.linux) {
             binary.linkTask.get().linkerArgs.add('-pthread')
+            binary.linkTask.get().linkerArgs.add('-lrt')
         }
     }
 }

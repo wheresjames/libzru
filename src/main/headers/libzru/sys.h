@@ -32,41 +32,13 @@
 
 #pragma once
 
-#include <string>
-#include <sstream>
-#include <vector>
-#include <locale>
-#include <codecvt>
-#include <iostream>
-#include <iomanip>
-#include <initializer_list>
-#include <list>
-#include <map>
-#include <functional>
-#include <mutex>
-#include <condition_variable>
-#include <chrono>
-#include <cstdint>
-#include <string.h>
-
 namespace zru
 {
 
-#if defined(_WIN32)
-#define   ZRU_WINDOWS
-#else
-#define   ZRU_POSIX
-#endif
+    /** Install ctrl-c handler
+        @param [out]    - Flag is incremented each time ctrl-c is pressed
+    */
+    void install_ctrl_c_handler(volatile int *fCount);
 
-}; // end namespace
 
-#include "libzru/types.h"
-#include "libzru/sys.h"
-#include "libzru/any.h"
-#include "libzru/str.h"
-#include "libzru/md5.h"
-#include "libzru/property_bag.h"
-#include "libzru/parsers.h"
-#include "libzru/shrmem.h"
-#include "libzru/worker_thread.h"
-
+} // end namespace

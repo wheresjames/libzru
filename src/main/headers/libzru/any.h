@@ -1,7 +1,7 @@
 /*------------------------------------------------------------------
 // Copyright (c) 2020
 // Robert Umbehant
-// winglib@wheresjames.com
+// libzru@wheresjames.com
 // http://www.wheresjames.com
 //
 // Redistribution and use in source and binary forms, with or
@@ -41,7 +41,7 @@ namespace zru
         int sizeOf(const t) const { return at_##i & at_size_mask; } \
         Type typeOf(const t) const { return at_##i; } \
         bool is##m() const { return type == at_##i; } \
-        any(const t v) { type = typeOf(v); v##m = v; } \
+        any(const t v) : any() { type = typeOf(v); v##m = v; } \
         any& set_##i(const t &v) { clear(); type = typeOf(v); v##m = v; return *this; } \
         any& operator =(const t &v) { return set_##i(v); }
 
@@ -49,7 +49,7 @@ namespace zru
         int sizeOf(const t) const { return at_##i & at_size_mask; } \
         Type typeOf(const t) const { return at_##i; } \
         bool is##m() { return type == at_##i; } \
-        any(const t v) { type = typeOf(v); v##m = v; } \
+        any(const t v) : any() { type = typeOf(v); v##m = v; } \
         any& set_##i(const t v) { clear(); type = typeOf(v); v##m = v; return *this; } \
         any& operator =(const t v) { return set_##i(v); }
 
@@ -165,7 +165,7 @@ namespace zru
         any() { type = at_void; pVoid = 0; }
 
         // Copy constructor
-        any(const any& r) { (*this) = r; }
+        any(const any& r) : any() { (*this) = r; }
 
         // Default destructor
         ~any() { clear(); }
@@ -394,18 +394,22 @@ namespace zru
                 {   const char *pStr = pString->c_str();
                     switch(pString->length())
                     {   case 1: if ('1' == pStr[0]) return true;
+                                break;
                         case 2: if ('o' == std::tolower(pStr[0])
                                     && 'n' == std::tolower(pStr[1])
                                     ) return true;
+                                break;
                         case 3: if ('y' == std::tolower(pStr[0])
                                     && 'e' == std::tolower(pStr[1])
                                     && 's' == std::tolower(pStr[2])
                                     ) return true;
+                                break;
                         case 4: if ('t' == std::tolower(pStr[0])
                                     && 'r' == std::tolower(pStr[1])
                                     && 'u' == std::tolower(pStr[2])
                                     && 'e' == std::tolower(pStr[3])
                                     ) return true;
+                                break;
                     }
                     return false;
                 }
@@ -413,18 +417,22 @@ namespace zru
                 {   const wchar_t *pWStr = pWString->c_str();
                     switch(pString->length())
                     {   case 1: if (L'1' == pWStr[0]) return true;
+                                break;
                         case 2: if (L'o' == std::tolower(pWStr[0])
                                     && L'n' == std::tolower(pWStr[1])
                                     ) return true;
+                                break;
                         case 3: if (L'y' == std::tolower(pWStr[0])
                                     && L'e' == std::tolower(pWStr[1])
                                     && L's' == std::tolower(pWStr[2])
                                     ) return true;
+                                break;
                         case 4: if (L't' == std::tolower(pWStr[0])
                                     && L'r' == std::tolower(pWStr[1])
                                     && L'u' == std::tolower(pWStr[2])
                                     && L'e' == std::tolower(pWStr[3])
                                     ) return true;
+                                break;
                     }
                     return false;
                 }
@@ -673,23 +681,22 @@ namespace zru
         }
 
         // [ string ]
-        Type typeOf(const string &) { return at_string; }
+        Type typeOf(const t_str &) { return at_string; }
         Type typeOf(const char *) { return at_string; }
         bool isString() { return type == at_string; }
-        any(const string &v) { make(typeOf(v)); (*pString) = v; }
-        any(const char *v) { make(typeOf(v)); (*pString) = v; }
-        any& operator =(const string &v) { make(typeOf(v)); (*pString) = v; return *this; }
-        any& set_string(const string &v) { make(typeOf(v)); (*pString) = v; return *this; }
-        any& operator =(const char *v) { make(typeOf(v)); (*pString) = v; return *this; }
-        any& set_char_ptr(const char *v) { make(typeOf(v)); (*pString) = v; return *this; }
-        string toString() const
+        any(const string &v) : any() { make(at_string); (*pString) = v; }
+        any(const char *v) : any() { make(at_string); (*pString) = v; }
+        any& operator =(const t_str &v) { make(at_string); (*pString) = v; return *this; }
+        any& set_string(const t_str &v) { make(at_string); (*pString) = v; return *this; }
+        any& operator =(const char *v) { make(at_string); (*pString) = v; return *this; }
+        any& set_char_ptr(const char *v) { make(at_string); (*pString) = v; return *this; }
+        t_str toString() const
         {
             try
             {
                 switch(type)
                 {
                     default : break;
-    //                ZRZ_SIMPLE_CONV(std::to_string); // <<< Ditching this so I can clip the trailing zeros on floating points
                     case at_bool:           return vBool ? "true" : "false";
                     case at_char:           return t_str() += vChar;
                     case at_uchar:          return t_str() += vUChar;
@@ -711,9 +718,9 @@ namespace zru
                     case at_vector:         return string(pVector->begin(), pVector->end());
                 }
             } catch(...){}
-            return string();
+            return t_str();
         }
-        string toNumString(int base = 10, bool bUpperCase = false) const
+        t_str toNumString(int base = 10, bool bUpperCase = false) const
         {
             try
             {
@@ -721,7 +728,6 @@ namespace zru
                 switch(type)
                 {
                     default : break;
-    //                ZRZ_SIMPLE_CONV(std::to_string); // <<< Ditching this so I can clip the trailing zeros on floating points
                     case at_bool:           ll = (unsigned long long)vBool ? 1 : 0; break;
                     case at_char:           ll = (unsigned long long)vChar; break;
                     case at_uchar:          ll = (unsigned long long)vUChar; break;
@@ -747,25 +753,24 @@ namespace zru
                 ss << ll;
                 return ss.str();
             } catch(...){}
-            return string();
+            return t_str();
         }
 
         // [ wstring ]
-        Type typeOf(const wstring &) { return at_wstring; }
+        Type typeOf(const t_wstr &) { return at_wstring; }
         Type typeOf(const wchar_t *) { return at_wstring; }
         bool isWString() { return type == at_wstring; }
-        any(const wstring &v) { make(typeOf(v)); (*pWString) = v; }
-        any(const wchar_t *v) { make(typeOf(v)); (*pWString) = v; }
-        any& operator =(const wstring &v) { make(typeOf(v)); (*pWString) = v; return *this; }
-        any& set_wstring(const wstring &v) { make(typeOf(v)); (*pWString) = v; return *this; }
-        any& operator =(const wchar_t *v) { make(typeOf(v)); (*pWString) = v; return *this; }
-        any& set_wchar_ptr(const wchar_t *v) { make(typeOf(v)); (*pWString) = v; return *this; }
-        wstring toWString(int base = 10) const
+        any(const t_wstr &v) : any() { make(at_wstring); (*pWString) = v; }
+        any(const wchar_t *v) : any() { make(at_wstring); (*pWString) = v; }
+        any& operator =(const t_wstr &v) { make(at_wstring); (*pWString) = v; return *this; }
+        any& set_wstring(const t_wstr &v) { make(at_wstring); (*pWString) = v; return *this; }
+        any& operator =(const wchar_t *v) { make(at_wstring); (*pWString) = v; return *this; }
+        any& set_wchar_ptr(const wchar_t *v) { make(at_wstring); (*pWString) = v; return *this; }
+        t_wstr toWString() const
         {
             switch(type)
             {
                 default : break;
-//                ZRZ_SIMPLE_CONV(std::to_wstring); // <<< Ditching this so I can clip the trailing zeros on floating points
                 case at_bool:           return vBool ? L"true" : L"false";
                 case at_char:           return t_wstr() += (t_wstr::value_type)vChar;
                 case at_uchar:          return t_wstr() += (t_wstr::value_type)vUChar;
@@ -792,7 +797,7 @@ namespace zru
         // [ vector ]
         Type typeOf(const vector &) { return at_vector; }
         bool isVector() { return type == at_vector; }
-        any(const vector &v) { make(typeOf(v)); (*pVector) = v; }
+        any(const vector &v) : any() { make(typeOf(v)); (*pVector) = v; }
         any& operator =(const vector &v) { make(typeOf(v)); (*pVector) = v; return *this; }
         any& set_vector(const vector &v) { make(typeOf(v)); (*pVector) = v; return *this; }
         vector toVector()

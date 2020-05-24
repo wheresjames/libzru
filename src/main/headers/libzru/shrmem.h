@@ -32,41 +32,58 @@
 
 #pragma once
 
-#include <string>
-#include <sstream>
-#include <vector>
-#include <locale>
-#include <codecvt>
-#include <iostream>
-#include <iomanip>
-#include <initializer_list>
-#include <list>
-#include <map>
-#include <functional>
-#include <mutex>
-#include <condition_variable>
-#include <chrono>
-#include <cstdint>
-#include <string.h>
-
 namespace zru
 {
 
-#if defined(_WIN32)
-#define   ZRU_WINDOWS
-#else
-#define   ZRU_POSIX
-#endif
+class shrmem
+{
 
-}; // end namespace
+public:
 
-#include "libzru/types.h"
-#include "libzru/sys.h"
-#include "libzru/any.h"
-#include "libzru/str.h"
-#include "libzru/md5.h"
-#include "libzru/property_bag.h"
-#include "libzru/parsers.h"
-#include "libzru/shrmem.h"
-#include "libzru/worker_thread.h"
+    /// Default constructor
+    shrmem() : m_fd((void*)-1), m_pMem((void*)-1), m_sz(0), m_bExisting(false) {}
 
+    /// Default destructor
+    ~shrmem() { close(); }
+
+    /// Close shared memory
+    void close();
+
+    /// Create a new shared memory region
+    bool open(const t_str &sFile, int64_t sz, bool bCreate = true);
+
+    /// Returns non-zero if the share already exists
+    bool isExisting() { return m_bExisting; }
+
+    /// Returns a pointer to the share
+    void* ptr() { return ((void*)-1 != m_pMem) ? m_pMem : 0; }
+
+    /// Returns a char* to the share
+    char* str() { return (char*)(((void*)-1 != m_pMem) ? m_pMem : 0); }
+
+    /// Returns the shares memory size
+    int64_t size() { return m_sz;}
+
+    /// Returns the shares file name
+    t_str getFileName() { return m_sFile; }
+
+private:
+
+    /// Share name
+    t_str               m_sFile;
+
+    /// File handle
+    void*               m_fd;
+
+    /// Pointer to the memory
+    void*               m_pMem;
+
+    /// Size of the memory buffer
+    int64_t             m_sz;
+
+    /// Sets to non zero if the share already exists
+    bool                m_bExisting;
+
+};
+
+} // end namespace

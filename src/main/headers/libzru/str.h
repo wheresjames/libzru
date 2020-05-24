@@ -1,7 +1,7 @@
 /*------------------------------------------------------------------
 // Copyright (c) 2020
 // Robert Umbehant
-// winglib@wheresjames.com
+// libzru@wheresjames.com
 // http://www.wheresjames.com
 //
 // Redistribution and use in source and binary forms, with or
@@ -53,6 +53,42 @@ namespace zru::str
         return end - start;
     }
 
+    // Trim strings
+    template<typename t_str>
+        static t_str& ltrim(t_str &s, const t_str &t)
+        {   s.erase(s.begin(), std::find_if(s.begin(), s.end(), [&t](int ch)
+            {   return t_str::npos == t.find(ch);
+            }));
+            return s;
+        }
+    template<typename t_str>
+        static t_str& rtrim(t_str &s, const t_str &t)
+        {   s.erase(std::find_if(s.rbegin(), s.rend(), [&t](int ch)
+            {   return t_str::npos == t.find(ch);
+            }).base(), s.end());
+            return s;
+        }
+    template<typename t_str>
+        static t_str& trim(t_str &s, const t_str &t)
+        {   ltrim(s, t);
+            rtrim(s, t);
+            return s;
+        }
+    template<typename t_str>
+        static t_str ltrim_copy(t_str s, const t_str &t)
+        {   ltrim(s, t);
+            return s;
+        }
+    template<typename t_str>
+        static t_str rtrim_copy(t_str s, const t_str &t)
+        {   rtrim(s, t);
+            return s;
+        }
+    template<typename t_str>
+        static t_str trim_copy(t_str s, const t_str &t)
+        {   trim(s, t);
+            return s;
+        }
 
     /** Interprets a string token
         @param[in]      x_sStr          - String to search
@@ -425,6 +461,7 @@ namespace zru::str
         t_str join(const t_str &sSep, Args... args)
         {
             t_str r;
+            std::stringstream ss;
             std::vector<zru::any> vec = {args...};
             for (size_t i = 0; i < vec.size(); i++)
             {

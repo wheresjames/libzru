@@ -1,7 +1,7 @@
 /*------------------------------------------------------------------
 // Copyright (c) 2020
 // Robert Umbehant
-// libzru@wheresjames.com
+// winglib@wheresjames.com
 // http://www.wheresjames.com
 //
 // Redistribution and use in source and binary forms, with or
@@ -30,43 +30,72 @@
 //   EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //----------------------------------------------------------------*/
 
-#pragma once
+#include "libzru.h"
 
-#include <string>
-#include <sstream>
-#include <vector>
-#include <locale>
-#include <codecvt>
-#include <iostream>
-#include <iomanip>
-#include <initializer_list>
-#include <list>
-#include <map>
-#include <functional>
-#include <mutex>
-#include <condition_variable>
-#include <chrono>
-#include <cstdint>
-#include <string.h>
+#if defined(ZRU_POSIX)
+#   include <unistd.h>
+#   include <signal.h>
+#elif defined(ZRU_WINDOWS)
+#   include <windows.h>
+#endif
+
 
 namespace zru
 {
 
-#if defined(_WIN32)
-#define   ZRU_WINDOWS
-#else
-#define   ZRU_POSIX
+static volatile int *g_fCount = 0;
+static void ctrl_c_handler(int s)
+{
+    if (!g_fCount || 8 < (*g_fCount))
+    {   ZruError("~ ctrl-c ~");
+        exit(1);
+    }
+
+    (*g_fCount)++;
+    ZruWarning("~ ctrl-c ~");
+}
+
+
+//-------------------------------------------------------------------
+#if defined(ZRU_POSIX)
+
+void install_ctrl_c_handler(volatile int *fCount)
+{
+    // Save the flag location
+    g_fCount = fCount;
+
+    // Install the signal handler
+    struct sigaction sigIntHandler;
+    sigIntHandler.sa_handler = ctrl_c_handler;
+    sigemptyset(&sigIntHandler.sa_mask);
+    sigIntHandler.sa_flags = 0;
+    sigaction(SIGINT, &sigIntHandler, 0);
+}
+
+
+//-------------------------------------------------------------------
+#elif defined(ZRU_WINDOWS)
+
+BOOL WINAPI CtrlHandler(DWORD fdwCtrlType)
+{
+    if (CTRL_C_EVENT != fdwCtrlType)
+        return FALSE;
+
+    ctrl_c_handler(0);
+
+    return TRUE;
+}
+
+void install_ctrl_c_handler(volatile int *fCount)
+{
+    // Save the flag location
+    g_fCount = fCount;
+
+    // Set ctrl handler
+    SetConsoleCtrlHandler(CtrlHandler, TRUE);
+}
+
 #endif
 
-}; // end namespace
 
-#include "libzru/types.h"
-#include "libzru/sys.h"
-#include "libzru/any.h"
-#include "libzru/str.h"
-#include "libzru/md5.h"
-#include "libzru/property_bag.h"
-#include "libzru/parsers.h"
-#include "libzru/shrmem.h"
-#include "libzru/worker_thread.h"
-
+} // end namespace

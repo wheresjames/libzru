@@ -1,7 +1,7 @@
 /*------------------------------------------------------------------
 // Copyright (c) 2020
 // Robert Umbehant
-// winglib@wheresjames.com
+// libzru@wheresjames.com
 // http://www.wheresjames.com
 //
 // Redistribution and use in source and binary forms, with or
@@ -167,10 +167,11 @@ bool property_bag::isset(const any &k) const
     if (m_m.end() == it)
         return false;
 
-    return it->second.isset();
+    return true;
+//    return it->second.isset();
 }
 
-bool property_bag::isset(const t_str &k) const
+bool property_bag::issetStr(const t_str &k) const
 {
     if (!k.length())
         return false;
@@ -188,7 +189,7 @@ bool property_bag::isset(const t_str &sep, const t_str &k)
         return false;
 
     if (!sep.length())
-        return isset(k);
+        return issetStr(k);
 
     t_str::size_type p = 0;
     t_str key = k;
@@ -196,7 +197,7 @@ bool property_bag::isset(const t_str &sep, const t_str &k)
     {
         p = key.find(sep);
         if (t_str::npos == p)
-            return isset(key);
+            return issetStr(key);
 
         if (!p)
             key = key.substr(1);
@@ -209,7 +210,7 @@ bool property_bag::isset(const t_str &sep, const t_str &k)
 bool property_bag::isset(std::initializer_list< t_str > a)
 {
     for(auto it = std::begin(a); std::end(a) != it; it++)
-        if (!isset(*it))
+        if (!issetStr(*it)) // +++ Using isset(const any &) here crashes ????
             return false;
     return true;
 }

@@ -1,7 +1,7 @@
 /*------------------------------------------------------------------
 // Copyright (c) 2020
 // Robert Umbehant
-// winglib@wheresjames.com
+// libzru@wheresjames.com
 // http://www.wheresjames.com
 //
 // Redistribution and use in source and binary forms, with or
@@ -51,6 +51,10 @@ namespace zru
                         )
 #   define tcTTEXT(c, s)   tcTT(c, s)
 
+// Why?
+#define _zruMkStr(v) #v
+#define zruMkStr(v) _zruMkStr(v)
+
     // Byte array
     typedef std::vector<char> vector;
 
@@ -86,6 +90,12 @@ namespace zru
 #   define CONSOLE_NAGATIVE     "\033[7m"
 #   define CONSOLE_STRIKEOUT    "\033[9m"
 #   define CONSOLE_DEFAULT      "\033[0m"
+
+#   define ZruPrint(...) std::cout << zru::str::join<zru::string>("", __VA_ARGS__);
+
+#   define ZruShow(...) std::cout << zru::str::join<zru::string>("", __VA_ARGS__) << std::endl;
+
+#   define ZruJoin(sep, ...) std::cout << zru::str::join<zru::string>(sep, __VA_ARGS__) << std::endl;
 
 #   define ZruLog(...) std::cout << zru::str::filename<zru::string>(__FILE__) \
                                  << ":" << __FUNCTION__ \

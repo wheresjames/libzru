@@ -1,7 +1,7 @@
 /*------------------------------------------------------------------
 // Copyright (c) 2020
 // Robert Umbehant
-// winglib@wheresjames.com
+// libzru@wheresjames.com
 // http://www.wheresjames.com
 //
 // Redistribution and use in source and binary forms, with or
@@ -110,7 +110,7 @@ public:
 
     bool isset(const any &k) const;
 
-    bool isset(const t_str &k) const;
+    bool issetStr(const t_str &k) const;
 
     bool isset(const t_str &sep, const t_str &k);
 
@@ -170,7 +170,6 @@ public:
     property_bag pop();
 
     property_bag pop(long n);
-
 
 private:
 

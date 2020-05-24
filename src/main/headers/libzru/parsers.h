@@ -1,7 +1,7 @@
 /*------------------------------------------------------------------
 // Copyright (c) 2020
 // Robert Umbehant
-// winglib@wheresjames.com
+// libzru@wheresjames.com
 // http://www.wheresjames.com
 //
 // Redistribution and use in source and binary forms, with or
@@ -141,9 +141,20 @@ namespace zru::parsers
     template<typename t_str = zru::string, typename t_pb = zru::property_bag>
         static t_pb parse_command_line(const t_str &x_sStr)
         {
-            typename t_str::size_type pos = 0;
-            return parse_command_line<t_str, t_pb>(x_sStr, pos);
+            return parse_command_line<t_str, t_pb>(x_sStr, strpos(0));
         }
+    template<typename t_str = zru::string, typename t_pb = zru::property_bag>
+        static t_pb parse_command_line(int x_len, typename t_pb::t_str::value_type *x_sStr[])
+        {
+            t_str s;
+            for (int i = 0; i < x_len && x_sStr[i]; i++)
+            {   if (0 < i)
+                    s += " ";
+                s += x_sStr[i];
+            }
+            return parse_command_line<t_str, t_pb>(s, strpos(0));
+        }
+
 
     // Set value into property bag
 #   define zruSETVAL(at, pb, key, val) \
@@ -175,6 +186,7 @@ namespace zru::parsers
         const t_str sQuotes = tcTT(t_char, "\"'");
         const t_str sEscape = tcTT(t_char, "\\");
         const t_str sNumber = tcTT(t_char, "+-.0123456789");
+        const t_anymap mVals({{"true", true},{"false", false}});
 
         // The property bag we will return
         t_pb pb;
@@ -216,8 +228,7 @@ namespace zru::parsers
             // End of array
             if (zruCHR('}') == ch || zruCHR(']') == ch)
             {
-                pos++;
-                if (pos >= max)
+                if (++pos >= max)
                     break;
 
                 zruSETVAL(arrayType, pb, key, val);
@@ -259,7 +270,7 @@ namespace zru::parsers
                 pos++;
             }
 
-            // Assignment
+            // End of statement
             else if (zruCHR(',') == ch)
             {
                 pos++;
@@ -318,7 +329,6 @@ namespace zru::parsers
             else
             {
                 // Check for bool value
-                t_anymap mVals({{"true", true}, {"false", false}});
                 typename t_str::size_type end = pos;
                 t_any v = str::map_values(x_sStr, mVals, end, max);
 
@@ -367,10 +377,7 @@ namespace zru::parsers
     }
     template<typename t_str = zru::string, typename t_pb = zru::property_bag>
         static t_pb json_parse(const t_str &x_sStr)
-        {
-            typename t_str::size_type pos = 0;
-            return json_parse<t_str, t_pb>(x_sStr, pos);
-        }
+        {   return json_parse<t_str, t_pb>(x_sStr, strpos(0)); }
 
     //---------------------------------------------------------------
     /** Encode property_bag as a JSON string
@@ -497,6 +504,253 @@ namespace zru::parsers
             return r;
         }
 
+    // Set value into property bag
+#   define zruSETCFGVAL(at, pb, key, val) \
+        if (1 == at && key.length()) \
+            pb[key] = val; \
+        else if (2 == at && val.isSet()) \
+            pb[idx++] = val;
+
+    //---------------------------------------------------------------
+    /** Parses Config file string
+
+        @param [in] x_sStr      - String containing json string
+        @param [in] pos         - Position in the string to start
+        @param [in] max         - Position in the string to stop
+
+    */
+    template<typename t_str = zru::string, typename t_pb = zru::property_bag>
+        static t_pb config_parse( const t_str &x_sStr,
+                                typename t_str::size_type &pos,
+                                typename t_str::size_type max = t_str::npos
+                              )
+    {
+        typedef typename t_str::value_type t_char;
+
+        zruCHECK_MAX(x_sStr, max);
+
+        // White space
+        const t_str sWhiteSpace = zruTXT(" \t");
+        const t_str sQuotes = zruTXT("\"'");
+        const t_str sEscape = zruTXT("\\");
+        const t_str sNumber = zruTXT("+-.0123456789");
+        const t_str sBreak = zruTXT(":=,;#{}[]/\r\n");
+        const t_anymap mVals({  {"true", true}, {"false", false},
+                                {"yes", true}, {"no", false},
+                                {"on", true}, {"off", false},
+                             });
+
+        // The property bag we will return
+        t_pb pb;
+
+        // Skip white space
+        pos = str::find_first_not_of(x_sStr, sWhiteSpace, pos, max);
+        if (t_str::npos == pos || pos >= max)
+            return pb;
+
+        int arrayType = -1;
+        switch(x_sStr[pos])
+        {
+            default: arrayType = 1; break;
+            case zruCHR('{') : arrayType = 1; pos++; break;
+            case zruCHR('[') : arrayType = 2; pos++; break;
+        }
+
+        // Flag as an array
+        if (2 == arrayType)
+            pb.setArray(true);
+
+        // Current key / value
+        int idx = 0;
+        typename t_pb::t_str key;
+        typename t_pb::t_any val;
+
+        // Process data
+        while (t_str::npos != pos && pos < max)
+        {
+            // Skip white space
+            pos = str::find_first_not_of(x_sStr, sWhiteSpace, pos, max);
+            if (t_str::npos == pos)
+                break;
+
+            t_char ch = x_sStr[pos];
+
+            // End of array
+            if (zruCHR('}') == ch || zruCHR(']') == ch)
+            {
+                if (++pos >= max)
+                    break;
+
+                zruSETCFGVAL(arrayType, pb, key, val);
+
+                return pb;
+            }
+
+            // Start array
+            else if (zruCHR('{') == ch || zruCHR('[') == ch)
+            {
+                if (1 == arrayType && 0 < key.length())
+                {   pb[key] = config_parse(x_sStr, pos, max);
+                    key = "";
+                }
+                else
+                    pb[idx++] = config_parse(x_sStr, pos, max);
+            }
+
+            // Assignment
+            else if (zruCHR(':') == ch || zruCHR('=') == ch)
+                pos++;
+
+            // End of statement
+            else if (zruCHR(',') == ch || zruCHR(';') == ch
+                     || zruCHR('\r') == ch || zruCHR('\n') == ch)
+            {
+                pos++;
+
+                zruSETCFGVAL(arrayType, pb, key, val);
+
+                key = "";
+                val.clear();
+            }
+
+            // Quoted string
+            else if (zruCHR('\"') == ch || zruCHR('\"') == ch)
+            {
+                t_str s = str::unquote<t_str>(x_sStr, pos, max,
+                                              sQuotes, sQuotes,
+                                              sEscape, sBreak);
+
+                if (1 == arrayType && 0 >= key.length())
+                    key = s;
+                else if (!val.isSet())
+                    val = s;
+            }
+
+            // It's something else
+            else
+            {
+                // Save existing value
+                if (val.isSet())
+                {   zruSETCFGVAL(arrayType, pb, key, val);
+                    key = "";
+                    val.clear();
+                }
+
+                // Line comment
+                if (zruCHR('#') == ch
+                    || ((pos+1) < max && zruCHR('/') == ch && zruCHR('/') == x_sStr[pos+1]))
+                {
+                    pos++;
+                    while(pos < max)
+                    {
+                        ch = x_sStr[pos];
+                        if (zruCHR('\\') == ch)
+                        {
+                            if (++pos >= max)
+                                break;
+
+                            if (zruCHR('\r') == x_sStr[pos])
+                                if (++pos >= max)
+                                    break;
+
+                            if (zruCHR('\n') == x_sStr[pos])
+                                if (++pos >= max)
+                                    break;
+                        }
+                        else if (zruCHR('\r') != ch && zruCHR('\n') != ch)
+                            pos++;
+                        else
+                            break;
+                    }
+                    continue;
+                }
+
+                // Block comment
+                if (((pos+1) < max && zruCHR('/') == ch && zruCHR('*') == x_sStr[pos+1]))
+                {
+                    pos += 2;
+                    while((pos+1) < max)
+                        if (zruCHR('*') == x_sStr[pos] && zruCHR('/') == x_sStr[pos+1])
+                        {   pos += 2;
+                            break;
+                        }
+                        else
+                            pos++;
+                    continue;
+                }
+
+                // Skip forward slashes
+                if (zruCHR('/') == ch)
+                {
+                    pos++;
+                    continue;
+                }
+
+                // Check for bool value
+                typename t_str::size_type end = pos;
+                t_any v = str::map_values(x_sStr, mVals, end, max);
+
+                // If we got a bool
+                if (pos != end)
+                {
+                    if (1 == arrayType && 0 >= key.length())
+                        key = v.toString();
+                    else
+                        val = v;
+                    pos = end;
+                }
+
+                // Is it a number
+                else if (t_str::npos != sNumber.find(ch))
+                {
+                    // Find the end of the number
+                    typename t_str::size_type end = pos;
+                    str::find_first_not_of(x_sStr, sNumber, end, max);
+                    if (t_str::npos == end)
+                    {   ZruError("Out of data in number at ", pos);
+                        return pb;
+                    }
+
+                    if (pos >= end)
+                    {   ZruError("Invalid number at ", pos);
+                        return pb;
+                    }
+
+                    // Read in the number
+                    t_str num = x_sStr.substr(pos, end);
+                    if (1 == arrayType && 0 >= key.length())
+                        key = num;
+                    else if (t_str::npos != num.find(zruCHR('.')))
+                        val = any(num).toDouble();
+                    else
+                        val = any(num).toLongLong();
+
+                    pos = end;
+                }
+
+                else
+                {
+                    t_str s = str::unquote<t_str>(x_sStr, pos, max,
+                                                sQuotes, sQuotes,
+                                                sEscape, sBreak);
+
+                    if (1 == arrayType && 0 >= key.length())
+                        key = str::trim<t_str>(s, zruTXT(" \t"));
+                    else
+                        val = str::trim<t_str>(s, zruTXT(" \t"));
+                }
+            }
+        }
+
+        // Write out any dangling value
+        zruSETCFGVAL(arrayType, pb, key, val);
+
+        return pb;
+    }
+    template<typename t_str = zru::string, typename t_pb = zru::property_bag>
+        static t_pb config_parse(const t_str &x_sStr)
+        {   return config_parse<t_str, t_pb>(x_sStr, strpos(0)); }
+
 
     //---------------------------------------------------------------
     /** Dump property bag
@@ -550,10 +804,10 @@ namespace zru::parsers
 
             while (pos < max)
             {
-                typename t_str::size_type l = 0;
+                typename t_str::size_type l = pos;
 
                 // First the hex
-                while (l < maxline && (l - pos) < maxline)
+                while ((l - pos) < maxline)
                 {
                     if (l < max)
                     {
